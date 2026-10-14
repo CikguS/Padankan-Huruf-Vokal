@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Padankan Huruf Vokal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #6EE7B7 0%, #3B82F6 100%);
+            min-height: 100vh;
+        }
+        .card-pop {
+            transition: all 0.2s ease-in-out;
+        }
+        .card-pop:hover {
+            transform: translateY(-4px) scale(1.03);
+        }
+        .matched {
+            opacity: 0.5;
+            pointer-events: none;
+            transform: scale(0.95);
+        }
+        .selected {
+            ring: 4px solid #F59E0B;
+            background-color: #FEF3C7 !important;
+            transform: scale(1.05);
+            box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.4);
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-between p-4 md:p-8">
+
+    <header class="text-center text-white my-4">
+        <h1 class="text-3xl md:text-5xl font-extrabold drop-shadow-md">✨ Padankan Huruf Vokal ✨</h1>
+        <p class="text-lg md:text-xl font-medium mt-2 text-indigo-100">Bantu Cikgu cari pasangan huruf besar dan kecil yang betul!</p>
+    </header>
+
+    <main class="w-full max-w-4xl bg-white/90 backdrop-blur-md rounded-3xl shadow-2xl p-6 md:p-10 mb-6">
+        <div class="flex flex-wrap justify-between items-center mb-8 bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
+            <div class="flex items-center space-x-3 mb-2 sm:mb-0">
+                <span class="text-2xl">⭐</span>
+                <div>
+                    <p class="text-xs text-gray-500 font-semibold uppercase">Skor</p>
+                    <p id="score" class="text-2xl font-bold text-indigo-600">0 / 5</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3 mb-2 sm:mb-0">
+                <span class="text-2xl">⏱️</span>
+                <div>
+                    <p class="text-xs text-gray-500 font-semibold uppercase">Masa</p>
+                    <p id="timer" class="text-2xl font-bold text-indigo-600">00:00</p>
+                </div>
+            </div>
+            <div>
+                <button onclick="resetGame()" class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold px-5 py-2.5 rounded-xl shadow-lg transition transform active:scale-95 flex items-center space-x-2">
+                    <span>🔄 Main Semula</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Uppercase Box -->
+            <div class="bg-gradient-to-b from-blue-50 to-indigo-50 p-6 rounded-2xl border-2 border-blue-200 shadow-inner">
+                <h2 class="text-xl font-bold text-blue-800 text-center mb-4 flex items-center justify-center gap-2">
+                    <span>🔠</span> Huruf Besar (Capital)
+                </h2>
+                <div id="uppercase-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Cards injected via JS -->
+                </div>
+            </div>
+
+            <!-- Lowercase Box -->
+            <div class="bg-gradient-to-b from-emerald-50 to-teal-50 p-6 rounded-2xl border-2 border-emerald-200 shadow-inner">
+                <h2 class="text-xl font-bold text-emerald-800 text-center mb-4 flex items-center justify-center gap-2">
+                    <span>🔡</span> Huruf Kecil (Small)
+                </h2>
+                <div id="lowercase-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Cards injected via JS -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="win-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl transform scale-95 transition-transform duration-300">
+            <div class="text-6xl mb-4 animate-bounce">🏆</div>
+            <h3 class="text-3xl font-extrabold text-gray-800 mb-2">Tahniah! Syabas!</h3>
+            <p id="final-stats" class="text-gray-600 text-lg mb-6">Anda telah berjaya memadankan semua huruf vokal dengan cemerlang!</p>
+            <button onclick="resetGame()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold py-3.5 px-6 rounded-2xl shadow-xl hover:from-emerald-600 hover:to-teal-700 transition transform active:scale-95 text-lg">
+                Main Lagi 🎮
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Audio Synthesizer using Web Audio API for sound effects
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            playPop() {
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.1);
+                
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            }
+
+            playSuccess() {
+                this.init();
+                const now = this.ctx.currentTime;
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, index) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + index * 0.08);
+
+                    gain.gain.setValueAtTime(0.2, now + index * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + index * 0.08 + 0.2);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + index * 0.08);
+                    osc.stop(now + index * 0.08 + 0.2);
+                });
+            }
+
+            playError() {
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.setValueAtTime(120, now + 0.15);
+
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+
+            playWin() {
+                this.init();
+                const now = this.ctx.currentTime;
+                const notes = [440, 554.37, 659.25, 880, 880, 1108.73];
+                notes.forEach((freq, index) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + index * 0.15);
+
+                    gain.gain.setValueAtTime(0.25, now + index * 0.15);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + index * 0.15 + 0.3);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + index * 0.15);
+                    osc.stop(now + index * 0.15 + 0.3);
+                });
+            }
+        }
+
+        const soundFX = new SoundFX();
+
+        const vowels = [
+            { upper: 'A', lower: 'a', word: 'Ayam' },
+            { upper: 'E', lower: 'e', word: 'Epal' },
+            { upper: 'I', lower: 'i', word: 'Ikan' },
+            { upper: 'O', lower: 'o', word: 'Oren' },
+            { upper: 'U', lower: 'u', word: 'Ular' }
+        ];
+
+        let selectedItem = null; // { type: 'upper' | 'lower', letter: string, element: HTMLElement }
+        let score = 0;
+        let timerInterval = null;
+        let secondsElapsed = 0;
+        let gameStarted = false;
+
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            secondsElapsed = 0;
+            document.getElementById('timer').innerText = "00:00";
+            timerInterval = setInterval(() => {
+                secondsElapsed++;
+                const mins = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
+                const secs = String(secondsElapsed % 60).padStart(2, '0');
+                document.getElementById('timer').innerText = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        function shuffle(array) {
+            return array.sort(() => Math.random() - 0.5);
+        }
+
+        function initGame() {
+            gameStarted = false;
+            score = 0;
+            selectedItem = null;
+            document.getElementById('score').innerText = `0 / ${vowels.length}`;
+            document.getElementById('win-modal').classList.add('hidden');
+            document.getElementById('win-modal').classList.remove('flex');
+
+            const upperContainer = document.getElementById('uppercase-container');
+            const lowerContainer = document.getElementById('lowercase-container');
+            upperContainer.innerHTML = '';
+            lowerContainer.innerHTML = '';
+
+            const shuffledUpper = shuffle([...vowels]);
+            const shuffledLower = shuffle([...vowels]);
+
+            shuffledUpper.forEach(v => {
+                const card = document.createElement('div');
+                card.className = "card-pop bg-white border-2 border-blue-100 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer shadow-md hover:shadow-xl transition select-none";
+                card.dataset.letter = v.upper;
+                card.dataset.type = 'upper';
+                card.innerHTML = `
+                    <span class="text-5xl md:text-6xl font-extrabold text-blue-600">${v.upper}</span>
+                    <span class="text-xs text-gray-400 mt-2 font-medium">Huruf Besar</span>
+                `;
+                card.addEventListener('click', () => handleCardClick(card, 'upper', v.upper));
+                upperContainer.appendChild(card);
+            });
+
+            shuffledLower.forEach(v => {
+                const card = document.createElement('div');
+                card.className = "card-pop bg-white border-2 border-emerald-100 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer shadow-md hover:shadow-xl transition select-none";
+                card.dataset.letter = v.lower;
+                card.dataset.type = 'lower';
+                card.innerHTML = `
+                    <span class="text-5xl md:text-6xl font-extrabold text-emerald-600">${v.lower}</span>
+                    <span class="text-xs text-gray-400 mt-2 font-medium">Contoh: ${v.word}</span>
+                `;
+                card.addEventListener('click', () => handleCardClick(card, 'lower', v.lower));
+                lowerContainer.appendChild(card);
+            });
+        }
+
+        function handleCardClick(cardElement, type, letter) {
+            if (cardElement.classList.contains('matched')) return;
+
+            if (!gameStarted) {
+                gameStarted = true;
+                startTimer();
+            }
+
+            soundFX.playPop();
+
+            if (!selectedItem) {
+                // Select first card
+                selectedItem = { type, letter, element: cardElement };
+                cardElement.classList.add('selected');
+            } else {
+                if (selectedItem.element === cardElement) {
+                    // Deselect if clicked again
+                    cardElement.classList.remove('selected');
+                    selectedItem = null;
+                    return;
+                }
+
+                if (selectedItem.type === type) {
+                    // Switched selection to another card of the same type
+                    selectedItem.element.classList.remove('selected');
+                    selectedItem = { type, letter, element: cardElement };
+                    cardElement.classList.add('selected');
+                } else {
+                    // Different types (one upper, one lower): Check match
+                    const matchFound = selectedItem.letter.toLowerCase() === letter.toLowerCase();
+
+                    if (matchFound) {
+                        soundFX.playSuccess();
+                        selectedItem.element.classList.remove('selected');
+                        selectedItem.element.classList.add('matched', 'bg-green-100', 'border-green-300');
+                        cardElement.classList.add('matched', 'bg-green-100', 'border-green-300');
+                        
+                        score++;
+                        document.getElementById('score').innerText = `${score} / ${vowels.length}`;
+                        selectedItem = null;
+
+                        if (score === vowels.length) {
+                            clearInterval(timerInterval);
+                            soundFX.playWin();
+                            setTimeout(showWinModal, 400);
+                        }
+                    } else {
+                        soundFX.playError();
+                        cardElement.classList.add('bg-red-100', 'border-red-300');
+                        selectedItem.element.classList.add('bg-red-100', 'border-red-300');
+                        
+                        const currentSelected = selectedItem.element;
+                        setTimeout(() => {
+                            cardElement.classList.remove('bg-red-100', 'border-red-300');
+                            currentSelected.classList.remove('bg-red-100', 'border-red-300', 'selected');
+                            selectedItem = null;
+                        }, 500);
+                    }
+                }
+            }
+        }
+
+        function showWinModal() {
+            const timeText = document.getElementById('timer').innerText;
+            document.getElementById('final-stats').innerText = `Tahniah! Anda telah berjaya memadankan semua huruf vokal dalam masa ${timeText}!`;
+            const modal = document.getElementById('win-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function resetGame() {
+            if (timerInterval) clearInterval(timerInterval);
+            initGame();
+        }
+
+        // Initialize game on load
+        window.onload = function() {
+            initGame();
+        };
+    </script>
+</body>
+</html>
